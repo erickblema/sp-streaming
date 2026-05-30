@@ -1,64 +1,81 @@
-import Image from "next/image";
+import Link from "next/link";
 
-export default function Home() {
+import { MatchList } from "@/components/match-list";
+import { getAllMatches } from "@/lib/rapidapi";
+import type { FootballMatch } from "@/lib/types";
+
+export const revalidate = 30;
+
+export default async function HomePage() {
+  let matches: FootballMatch[] = [];
+  let error: string | null = null;
+
+  try {
+    matches = await getAllMatches();
+  } catch (err) {
+    error =
+      err instanceof Error ? err.message : "Unable to load matches right now.";
+  }
+
+  const liveCount = matches.filter((m) => m.status.toLowerCase() === "live").length;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-[#070b09] text-white">
+      <header className="border-b border-white/10 bg-[#070b09]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-5 sm:px-6">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 text-sm font-black text-black">
+              SS
+            </span>
+            <div>
+              <p className="font-semibold tracking-tight">SportStream</p>
+              <p className="text-xs text-zinc-500">Live football streams</p>
+            </div>
+          </Link>
+          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-300">
+            {liveCount} live now
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <section className="mb-8 max-w-2xl">
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Watch live football
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-3 text-zinc-400">
+            Browse live fixtures, pick a match, and stream instantly in your
+            browser with adaptive HLS playback.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+        </section>
+
+        {error ? (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 px-5 py-4 text-sm text-red-200">
+            {error}
+            {!process.env.RAPIDAPI_KEY && (
+              <p className="mt-2 text-red-300">
+                Add your RapidAPI key to <code>.env.local</code> as{" "}
+                <code>RAPIDAPI_KEY</code>.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <aside className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 lg:max-h-[calc(100vh-12rem)] lg:overflow-hidden">
+              <MatchList matches={matches} />
+            </aside>
+
+            <section className="flex min-h-[420px] flex-col justify-center rounded-2xl border border-dashed border-white/10 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.12),_transparent_55%)] p-8 text-center">
+              <p className="text-lg font-medium text-white">
+                Select a match to start watching
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-sm text-zinc-500">
+                Use the sidebar to filter live games or search by league and
+                team name.
+              </p>
+            </section>
+          </div>
+        )}
       </main>
     </div>
   );
