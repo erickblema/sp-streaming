@@ -3,9 +3,9 @@
 import Image from "next/image";
 import { useState } from "react";
 
-type TeamFlagProps = {
+type TeamBadgeProps = {
   name: string;
-  flag: string;
+  logo?: string;
   size?: number;
   className?: string;
 };
@@ -20,21 +20,37 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-export function TeamFlag({
+function teamColor(name: string): string {
+  let hash = 0;
+
+  for (let index = 0; index < name.length; index += 1) {
+    hash = name.charCodeAt(index) + ((hash << 5) - hash);
+  }
+
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue} 42% 34%)`;
+}
+
+export function TeamBadge({
   name,
-  flag,
+  logo,
   size = 28,
   className = "",
-}: TeamFlagProps) {
+}: TeamBadgeProps) {
   const [failed, setFailed] = useState(false);
-  const showFallback = failed || !flag?.trim();
+  const showFallback = failed || !logo?.trim() || logo.includes("nologoo");
 
   if (showFallback) {
     return (
       <div
         aria-hidden
-        className={`flex shrink-0 items-center justify-center rounded-full bg-zinc-700 font-bold text-zinc-300 ${className}`}
-        style={{ width: size, height: size, fontSize: Math.max(10, size * 0.32) }}
+        className={`flex shrink-0 items-center justify-center rounded-full font-bold text-white/90 ${className}`}
+        style={{
+          width: size,
+          height: size,
+          fontSize: Math.max(10, size * 0.32),
+          backgroundColor: teamColor(name),
+        }}
       >
         {getInitials(name) || "?"}
       </div>
@@ -47,7 +63,7 @@ export function TeamFlag({
       style={{ width: size, height: size }}
     >
       <Image
-        src={flag}
+        src={logo!}
         alt=""
         fill
         className="object-cover"

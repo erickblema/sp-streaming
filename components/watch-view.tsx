@@ -4,7 +4,7 @@ import type { FootballMatch } from "@/lib/types";
 import { isLiveMatch } from "@/lib/rapidapi";
 
 import { LivePlayer } from "./live-player";
-import { TeamFlag } from "./team-flag";
+import { TeamBadge } from "./team-badge";
 
 type WatchViewProps = {
   match: FootballMatch;
@@ -34,7 +34,7 @@ export function WatchView({ match, streamUrl }: WatchViewProps) {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-            <TeamBlock name={match.home_name} flag={match.home_flag} align="end" />
+            <TeamBlock name={match.home_name} logo={match.home_flag} align="end" />
             <div className="text-center">
               <p className="text-3xl font-bold tabular-nums tracking-tight text-white">
                 {match.score}
@@ -45,7 +45,7 @@ export function WatchView({ match, streamUrl }: WatchViewProps) {
                   : new Date(match.kickoff).toLocaleString()}
               </p>
             </div>
-            <TeamBlock name={match.away_name} flag={match.away_flag} align="start" />
+            <TeamBlock name={match.away_name} logo={match.away_flag} align="start" />
           </div>
         </div>
       </section>
@@ -60,8 +60,8 @@ export function WatchView({ match, streamUrl }: WatchViewProps) {
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
           <p className="font-medium text-white">Stream info</p>
           <p className="mt-2 leading-relaxed">
-            Streams are delivered as HLS (.m3u8). If playback fails, the source
-            may have ended or geo-restricted the feed — try another live match.
+            Streams use multiple fallback servers per match. If playback fails,
+            try another live match or press retry.
           </p>
         </div>
       </aside>
@@ -71,11 +71,11 @@ export function WatchView({ match, streamUrl }: WatchViewProps) {
 
 function TeamBlock({
   name,
-  flag,
+  logo,
   align,
 }: {
   name: string;
-  flag: string;
+  logo: string;
   align: "start" | "end";
 }) {
   return (
@@ -84,7 +84,7 @@ function TeamBlock({
         align === "end" ? "sm:flex-row-reverse sm:text-right" : ""
       }`}
     >
-      <TeamFlag name={name} flag={flag} size={48} />
+      <TeamBadge name={name} logo={logo} size={48} />
       <p className="font-semibold text-white">{name}</p>
     </div>
   );

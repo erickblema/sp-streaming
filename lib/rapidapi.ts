@@ -1,6 +1,15 @@
-import type { FootballMatch, MatchesResponse, StreamResponse } from "./types";
+import {
+  dedupeMatches,
+  isFootballMatch,
+  mapApiMatch,
+} from "./match-id";
+import type {
+  FootballMatch,
+  MatchesApiResponse,
+  StreamServer,
+} from "./types";
 
-const RAPIDAPI_HOST = "football-live-stream-api.p.rapidapi.com";
+const RAPIDAPI_HOST = "football-live-streaming-api.p.rapidapi.com";
 const BASE_URL = `https://${RAPIDAPI_HOST}`;
 
 function getHeaders(): HeadersInit {
@@ -33,9 +42,42 @@ async function rapidFetch<T>(path: string, revalidate = 30): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function fetchMatchesPage(
+  page: number,
+  status: "live" | "vs",
+): Promise<MatchesApiResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    status,
+    type: "direct",
+  });
+
+  return rapidFetch<MatchesApiResponse>(`/matches?${params.toString()}`);
+}
+
+async function fetchAllByStatus(status: "live" | "vs"): Promise<FootballMatch[]> {
+  const firstPage = await fetchMatchesPage(1, status);
+  const matches = firstPage.matches.map(mapApiMatch);
+
+  for (let page = 2; page <= firstPage.pagination.totalPages; page += 1) {
+    const nextPage = await fetchMatchesPage(page, status);
+    matches.push(...nextPage.matches.map(mapApiMatch));
+  }
+
+  return dedupeMatches(matches.filter(isFootballMatch));
+}
+
 export async function getAllMatches(): Promise<FootballMatch[]> {
-  const data = await rapidFetch<MatchesResponse>("/all-match");
-  return data.result ?? [];
+  const [live, upcoming] = await Promise.all([
+    fetchAllByStatus("live"),
+    fetchAllByStatus("vs"),
+  ]);
+
+  return dedupeMatches([...live, ...upcoming]);
+}
+
+export async function getLiveMatches(): Promise<FootballMatch[]> {
+  return fetchAllByStatus("live");
 }
 
 export async function getMatchById(id: string): Promise<FootballMatch | null> {
@@ -43,26 +85,31 @@ export async function getMatchById(id: string): Promise<FootballMatch | null> {
   return matches.find((match) => match.id === id) ?? null;
 }
 
-export async function getStreamUrl(matchId: string): Promise<string> {
-  const data = await rapidFetch<StreamResponse>(`/link/${matchId}`, 0);
-  return resolvePlaybackUrl(data.url);
+export function getPlayableServers(match: FootballMatch): StreamServer[] {
+  const direct = match.servers.filter((server) => server.type === "direct");
+  const referer = match.servers.filter((server) => server.type === "referer");
+
+  if (direct.length > 0) return direct;
+  if (referer.length > 0) return referer;
+  return match.servers.filter((server) => server.type !== "drm");
 }
 
-export function resolvePlaybackUrl(apiUrl: string): string {
-  try {
-    const parsed = new URL(apiUrl);
-    const encoded = parsed.searchParams.get("url");
+export async function getStreamUrl(matchId: string): Promise<string> {
+  const match = await getMatchById(matchId);
 
-    if (encoded) {
-      return Buffer.from(encoded, "base64").toString("utf-8");
-    }
-  } catch {
-    // Fall through to raw URL when parsing fails.
+  if (!match || getPlayableServers(match).length === 0) {
+    throw new Error("No playable stream servers for this match");
   }
 
-  return apiUrl;
+  return `/api/hls/${matchId}`;
 }
 
 export function isLiveMatch(match: FootballMatch): boolean {
   return match.status.toLowerCase() === "live";
 }
+
+export {
+  dedupeMatches,
+  isFootballLeague,
+  isFootballMatch,
+} from "./match-id";

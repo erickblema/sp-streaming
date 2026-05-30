@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { FootballMatch } from "@/lib/types";
-import { isLiveMatch } from "@/lib/rapidapi";
+import { dedupeMatches, isLiveMatch } from "@/lib/rapidapi";
 
 import { MatchCard } from "./match-card";
 
@@ -18,10 +18,12 @@ export function MatchList({ matches, activeMatchId }: MatchListProps) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("live");
 
+  const uniqueMatches = useMemo(() => dedupeMatches(matches), [matches]);
+
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return matches.filter((match) => {
+    return uniqueMatches.filter((match) => {
       if (filter === "live" && !isLiveMatch(match)) return false;
 
       if (!normalizedQuery) return true;
@@ -37,9 +39,9 @@ export function MatchList({ matches, activeMatchId }: MatchListProps) {
 
       return haystack.includes(normalizedQuery);
     });
-  }, [filter, matches, query]);
+  }, [filter, query, uniqueMatches]);
 
-  const liveCount = matches.filter(isLiveMatch).length;
+  const liveCount = uniqueMatches.filter(isLiveMatch).length;
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -49,7 +51,7 @@ export function MatchList({ matches, activeMatchId }: MatchListProps) {
             Matches
           </h2>
           <span className="text-xs text-zinc-500">
-            {liveCount} live · {matches.length} total
+            {liveCount} live · {uniqueMatches.length} total
           </span>
         </div>
 

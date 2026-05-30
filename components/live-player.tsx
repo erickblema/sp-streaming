@@ -9,13 +9,23 @@ type LivePlayerProps = {
   title: string;
 };
 
-type PlayerState = "loading" | "playing" | "error";
+type PlayerState = "loading" | "ready" | "playing" | "error";
+
+function tryAutoplay(video: HTMLVideoElement) {
+  video.play().catch(() => {
+    // Browsers block autoplay with sound — controls remain usable.
+  });
+}
 
 export function LivePlayer({ src, poster, title }: LivePlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [state, setState] = useState<PlayerState>("loading");
+  const [attempt, setAttempt] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const playbackSrc =
+    attempt === 0 ? src : `${src}${src.includes("?") ? "&" : "?"}t=${attempt}`;
 
   const destroyPlayer = useCallback(() => {
     hlsRef.current?.destroy();
@@ -23,34 +33,50 @@ export function LivePlayer({ src, poster, title }: LivePlayerProps) {
   }, []);
 
   const retry = useCallback(() => {
+    setAttempt((value) => value + 1);
     setState("loading");
     setErrorMessage(null);
   }, []);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video || !playbackSrc) return;
 
     destroyPlayer();
     setState("loading");
     setErrorMessage(null);
 
     const onPlaying = () => setState("playing");
-    const onWaiting = () => setState("loading");
+    const onWaiting = () => {
+      if (!video.paused) {
+        setState("loading");
+      }
+    };
+    const onPause = () => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        setState("ready");
+      }
+    };
 
     video.addEventListener("playing", onPlaying);
     video.addEventListener("waiting", onWaiting);
+    video.addEventListener("pause", onPause);
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
-      video.play().catch(() => {
-        setState("error");
-        setErrorMessage("Autoplay was blocked. Press play to start the stream.");
-      });
+      video.src = playbackSrc;
+
+      const onLoaded = () => {
+        setState("ready");
+        tryAutoplay(video);
+      };
+
+      video.addEventListener("loadedmetadata", onLoaded, { once: true });
 
       return () => {
         video.removeEventListener("playing", onPlaying);
         video.removeEventListener("waiting", onWaiting);
+        video.removeEventListener("pause", onPause);
+        video.removeEventListener("loadedmetadata", onLoaded);
         video.removeAttribute("src");
         video.load();
       };
@@ -71,10 +97,8 @@ export function LivePlayer({ src, poster, title }: LivePlayerProps) {
     hlsRef.current = hls;
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play().catch(() => {
-        setState("error");
-        setErrorMessage("Autoplay was blocked. Press play to start the stream.");
-      });
+      setState("ready");
+      tryAutoplay(video);
     });
 
     hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -94,15 +118,16 @@ export function LivePlayer({ src, poster, title }: LivePlayerProps) {
       }
     });
 
-    hls.loadSource(src);
+    hls.loadSource(playbackSrc);
     hls.attachMedia(video);
 
     return () => {
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("pause", onPause);
       destroyPlayer();
     };
-  }, [destroyPlayer, src]);
+  }, [attempt, destroyPlayer, playbackSrc]);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black shadow-2xl shadow-emerald-950/30">
@@ -120,6 +145,14 @@ export function LivePlayer({ src, poster, title }: LivePlayerProps) {
           <div className="flex items-center gap-3 rounded-full bg-black/70 px-4 py-2 text-sm text-white">
             <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
             Buffering live stream…
+          </div>
+        </div>
+      )}
+
+      {state === "ready" && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25">
+          <div className="rounded-full bg-black/70 px-4 py-2 text-sm text-white">
+            Press play to start
           </div>
         </div>
       )}

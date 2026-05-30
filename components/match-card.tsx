@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { FootballMatch } from "@/lib/types";
 import { isLiveMatch } from "@/lib/rapidapi";
 
-import { TeamFlag } from "./team-flag";
+import { TeamBadge } from "./team-badge";
 
 type MatchCardProps = {
   match: FootballMatch;
@@ -39,8 +39,8 @@ export function MatchCard({ match, active = false }: MatchCardProps) {
       </div>
 
       <div className="space-y-3">
-        <TeamRow name={match.home_name} flag={match.home_flag} />
-        <TeamRow name={match.away_name} flag={match.away_flag} />
+        <TeamRow name={match.home_name} logo={match.home_flag} />
+        <TeamRow name={match.away_name} logo={match.away_flag} />
       </div>
 
       <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3 text-sm">
@@ -55,10 +55,10 @@ export function MatchCard({ match, active = false }: MatchCardProps) {
   );
 }
 
-function TeamRow({ name, flag }: { name: string; flag: string }) {
+function TeamRow({ name, logo }: { name: string; logo: string }) {
   return (
     <div className="flex items-center gap-3">
-      <TeamFlag name={name} flag={flag} size={28} />
+      <TeamBadge name={name} logo={logo} size={28} />
       <span className="truncate font-medium text-zinc-100">{name}</span>
     </div>
   );

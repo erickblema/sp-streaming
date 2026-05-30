@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "images.live-stream-api.workers.dev",
+        hostname: "cdn.1xapi.com",
       },
     ],
   },
